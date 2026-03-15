@@ -1,6 +1,6 @@
 blueprint:
   name: Frigate LLM Vision
-  author: whag
+  author: whag / lenne0815
   description: >-
     Basic requirements:<br /> - Home Assistant with an MQTT broker setup.<br />
     - Frigate integration with MQTT setup. Link: https://github.com/blakeblackshear/frigate-hass-integration<br />
