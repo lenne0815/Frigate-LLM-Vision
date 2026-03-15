@@ -1,5 +1,8 @@
 # Frigate LLM Notification [iOS-aware]
 
+**Original blueprint by [whag](https://github.com/willhaggan/HA_Frigate_VLLM_Notification).**  
+This version keeps the original blueprint structure and intent, while updating the working Frigate media paths, downloader behavior, iOS-aware media handling, and adding a switch to disable clip/video analysis.
+
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-blue?logo=homeassistant)
 ![Frigate](https://img.shields.io/badge/Frigate-NVR-orange)
 ![LLM Vision](https://img.shields.io/badge/LLM%20Vision-AI-green)
@@ -11,7 +14,7 @@ This version keeps the original iOS-aware notification flow, but also includes t
 - Correct Frigate media endpoints for snapshots, clips, HLS streams, thumbnails, and review previews
 - Downloader support using the corrected event/review URLs
 - iOS-aware clip handling with HLS for Apple devices
-- A dedicated **Enable Video Analysis** switch so end-event notifications can be sent **with or without** LLM clip analysis
+- A dedicated **video analysis on/off switch** so end-event notifications can be sent **with or without** LLM clip analysis
 - More reliable downloader waiting logic by matching on filenames instead of full URLs
 
 ---
@@ -64,7 +67,7 @@ This version keeps the original iOS-aware notification flow, but also includes t
 
 ## What changed in this version
 
-This blueprint differs from the earlier version in a few important ways:
+This blueprint differs from the earlier version in a few important ways.
 
 ### Correct media URLs
 The blueprint now uses the working Frigate endpoints:
@@ -128,144 +131,6 @@ Recommended first test:
 - one phone
 - one snapshot button
 - one live-view button
-
----
-
-## Important inputs
-
-## Frigate options
-
-### Frigate Camera
-Select the Frigate camera entity to monitor.
-
-### Severity
-Choose which Frigate review severities should trigger the automation:
-- `alert`
-- `detection`
-
-### Frigate Zones
-Optional Frigate zones required for the event.
-
-### Custom Zones
-Use this for zones that are not exposed in the selector.
-
-### All Zones
-If enabled, all selected zones must be entered before processing continues.
-
-### Required Objects
-Optional object filter such as:
-- `person`
-- `car`
-- `dog`
-- `package`
-
-### Sub Labels Required
-Optional Frigate sub-label filter.
-
-### Frigate Host
-Set your Frigate base URL, for example:
-
-`http://192.168.1.1:5000`
-
-Use the direct Frigate host here, not a broken proxy path.
-
----
-
-## LLM Vision options
-
-### Provider For Image Analysis
-Provider used for the initial snapshot analysis.
-
-### AI Model For Image Analysis
-Model used for the snapshot analysis.
-
-### Provider For Clip Analysis
-Provider used for the clip analysis.
-
-### AI Model For Clip Analysis
-Model used for the clip analysis.
-
----
-
-## Snapshot Analyse
-
-### LLM Vision Snapshot
-Enable or disable LLM snapshot analysis for the initial notification.
-
-### Prompt
-Custom prompt for the snapshot analysis.
-
-### Generate Title
-If enabled, LLM Vision can generate the title for the initial notification.
-
----
-
-## Review Clip Analyse
-
-### LLM Vision Clip
-This is the new switch that controls clip analysis.
-
-- **Enabled** → end-event clip is analyzed by LLM Vision
-- **Disabled** → end-event notification is still sent, but the clip is not sent to the LLM
-
-### Prompt
-Custom prompt for clip analysis.
-
-### Max Frames
-How many frames to analyze from the clip.
-
-### Generate Title
-If enabled, LLM Vision can generate the title for the clip update notification.
-
----
-
-## Downloader options
-
-### Use The Downloader Integration
-If enabled, Home Assistant downloads the snapshot/clip locally and uses the local files for LLM Vision.
-
-### Downloader Directory
-Root downloader directory.
-
-### Downloader Sub Directory
-Optional subdirectory inside the downloader root.
-
-### Image Download Max Wait Time
-Maximum wait time for snapshot downloads.
-
-### Clip Download Max Wait Time
-Maximum wait time for clip downloads.
-
----
-
-## Notification options
-
-### Notify Devices
-Choose the mobile devices that should receive the notifications.
-
-### iOS Devices
-Choose which of those notify devices are iOS devices.
-
-### Click Action New Event / End Event
-These let you define where the notification should open when tapped.
-
-### Attachment New Event / End Event
-These let you define which image/video/GIF is attached to each notification.
-
-### Cooldown
-Delay between retries / repeated processing to avoid spamming.
-
-### Button actions
-You can configure up to 3 buttons for:
-- **New Event**
-- **End Event**
-
-Supported button actions:
-- `VIEW_LIVE`
-- `VIEW_SNAPSHOT`
-- `VIEW_CLIP`
-- `SILENCE`
-- `CALL`
 
 ---
 
@@ -403,11 +268,3 @@ Reduce cooldown or review your filtering settings.
 - Downloader: off
 
 This turns the blueprint into a Frigate-driven smart notification automation without LLM processing.
-
----
-
-## Credits
-
-Original blueprint by **whag**.
-
-This version keeps the original blueprint structure and selectors while updating the working Frigate media paths, downloader behavior, iOS-aware media handling, and clip-analysis toggle.
