@@ -1572,7 +1572,7 @@ variables:
     {% endif %} {{ dir }}
 
   video: "{{ host }}/api/events/{{ id }}/clip.mp4"
-  video_ios: "{{ host }}/api/vod/event/{{ id }}/master.m3u8"
+  video_ios: "{{ host }}/vod/event/{{ id }}/master.m3u8"
   video_local: "{{ root_dir }}{{ sub_dir }}{{ id }}_clip.mp4"
   thumb: "{{ host }}/api/events/{{ id }}/thumbnail.jpg"
   image: "{{ host }}/api/events/{{ id }}/snapshot.jpg"
