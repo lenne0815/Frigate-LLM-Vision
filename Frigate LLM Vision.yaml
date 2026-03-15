@@ -1,5 +1,5 @@
 blueprint:
-  name: Frigate LLM Notification (v0.7) [iOS-aware]
+  name: Frigate LLM Vision
   author: whag
   description: >-
     Basic requirements:<br /> - Home Assistant with an MQTT broker setup.<br />
