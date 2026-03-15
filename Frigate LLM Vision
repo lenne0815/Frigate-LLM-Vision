@@ -1,4 +1,4 @@
-blueprint:
+´blueprint:
   name: Frigate LLM Notification (v0.7) [iOS-aware]
   author: whag
   description: >-
@@ -153,7 +153,7 @@ blueprint:
               multiple: true
         in_host:
           name: Frigate Host
-          description: Frigate base URL, for example http://192.168.1.1:5000
+          description: Frigate base url, for example http://192.168.1.1:5000
           default: http://192.168.1.1:5000
           selector:
             text:
@@ -380,8 +380,8 @@ blueprint:
               multiline: false
               multiple: false
         in_use_llm_video:
-          name: LLM Vision Clip
-          description: Use LLM Vision for review clip analysis. If off then the end-event notification is still sent without LLM clip analysis.
+          name: Enable Video Analysis
+          description: If off, clip analysis and the end-event update notification are both skipped.
           default: true
           selector:
             boolean: {}
@@ -1037,7 +1037,7 @@ actions:
             choose:
               - conditions:
                   - condition: template
-                    value_template: "{{ action1 | length != 0 }}"
+                    value_template: "{{ action1|length != 0 }}"
                 sequence: !input in_action1
 
           - alias: Repeat Until file exists or retries complete
@@ -1065,6 +1065,164 @@ actions:
                       continue_on_timeout: true
                       timeout:
                         seconds: !input download_image_wait
+
+                - alias: >-
+                    If Downloader is enabled wait until the image is downloaded
+                    then run LLM Image Analysis, if Downloader disabled continue
+                  if:
+                    - condition: template
+                      value_template: >-
+                        {{ (wait is defined and wait.completed and wait.trigger and wait.trigger.id == "image_exists") or (use_downloader == false) }}
+                  then:
+                    - delay:
+                        seconds: 2
+                    - variables:
+                        image_file: "{{ image_local if use_downloader else image }}"
+                    - if:
+                        - condition: template
+                          value_template: "{{ use_llm_image }}"
+                      then:
+                        - action: llmvision.video_analyzer
+                          data:
+                            provider: !input provider_image
+                            model: !input model_image
+                            store_in_timeline: !input use_remember
+                            expose_images: !input expose_image
+                            use_memory: !input use_memory
+                            video_file: "{{ image_file }}"
+                            max_frames: 1
+                            message: !input prompt
+                            include_filename: false
+                            target_width: !input target_width
+                            max_tokens: !input tokens
+                            generate_title: !input in_gen_title
+                            frigate_retry_attempts: 3
+                            frigate_retry_seconds: 1
+                          response_variable: response
+                        - delay:
+                            seconds: 5
+                        - variables:
+                            title: >-
+                              {{ response.response_title if gen_title and response.response_title|length > 0 else title_image }}
+                            msg: "{{ response.response_text }}"
+                            response_out: "{{ response.response_text }}"
+                      else:
+                        - variables:
+                            title: "{{ title_image }}"
+                            msg: "{{ custom_msg }}"
+                    - alias: Send Initial notification to notify devices
+                      repeat:
+                        for_each: "{{ notify_targets }}"
+                        sequence:
+                          - action: notify.{{ repeat.item.notify }}
+                            data:
+                              title: "{{ title }}"
+                              message: "{{ msg }}"
+                              data:
+                                image: "{{ attachment1 }}"
+                                url: "{{ attachment1 }}"
+                                clickAction: >-
+                                  {% set ca = ca1_in|string %} {% set is_clip = 'video' in ca %}
+                                  {% if is_clip %}
+                                    {{ video_ios if repeat.item.is_ios else video }}
+                                  {% else %}
+                                    {{ ca }}
+                                  {% endif %}
+                                group: "{{ camera }}-frigate-notification"
+                                tag: "{{ id }}"
+                                ttl: 0
+                                priority: high
+                                actions:
+                                  - action: >-
+                                      {{ "SILENCE_" ~ this.entity_id if button1_action == "SILENCE" else ("URI" if "/" in (button1_action | lower) or button1_action in ["VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"] else button1_action) }}
+                                    uri: >-
+                                      {{ (button1_action == "VIEW_LIVE") and ("entityId:" ~ input_camera)
+                                      or (button1_action == "VIEW_SNAPSHOT") and image
+                                      or (button1_action == "VIEW_CLIP") and (video_ios if repeat.item.is_ios else video)
+                                      or (button1_action == "CALL") and ("deep-link://tel:" ~ call_number)
+                                      or (button1_action not in ["SILENCE","VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"]) and "/lovelace" }}
+                                    title: "{{ button1_title }}"
+                                    behavior: >-
+                                      {{ "textInput" if button1_action == "SILENCE" else "" }}
+                                  - action: >-
+                                      {{ "SILENCE_" ~ this.entity_id if button2_action == "SILENCE" else ("URI" if "/" in (button2_action | lower) or button2_action in ["VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"] else button2_action) }}
+                                    uri: >-
+                                      {{ (button2_action == "VIEW_LIVE") and ("entityId:" ~ input_camera)
+                                      or (button2_action == "VIEW_SNAPSHOT") and image
+                                      or (button2_action == "VIEW_CLIP") and (video_ios if repeat.item.is_ios else video)
+                                      or (button2_action == "CALL") and ("deep-link://tel:" ~ call_number)
+                                      or (button2_action not in ["SILENCE","VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"]) and "/lovelace" }}
+                                    title: "{{ button2_title }}"
+                                    behavior: >-
+                                      {{ "textInput" if button2_action == "SILENCE" else "" }}
+                                  - action: >-
+                                      {{ "SILENCE_" ~ this.entity_id if button3_action == "SILENCE" else ("URI" if "/" in (button3_action | lower) or button3_action in ["VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"] else button3_action) }}
+                                    uri: >-
+                                      {{ (button3_action == "VIEW_LIVE") and ("entityId:" ~ input_camera)
+                                      or (button3_action == "VIEW_SNAPSHOT") and image
+                                      or (button3_action == "VIEW_CLIP") and (video_ios if repeat.item.is_ios else video)
+                                      or (button3_action == "CALL") and ("deep-link://tel:" ~ call_number)
+                                      or (button3_action not in ["SILENCE","VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"]) and "/lovelace" }}
+                                    title: "{{ button3_title }}"
+                                    behavior: >-
+                                      {{ "textInput" if button3_action == "SILENCE" else "" }}
+
+                - delay:
+                    minutes: !input cooldown
+                  alias: Cooldown
+              until:
+                - condition: template
+                  value_template: >-
+                    {{ (wait is defined and wait.completed and wait.trigger and wait.trigger.id == "image_exists") or (use_downloader == false) }}
+
+  - alias: Event is end Do LLM video analysis and send notification
+    if:
+      - condition: trigger
+        id:
+          - End event
+    then:
+      - delay:
+          seconds: !input delay_clip
+      - parallel:
+          - alias: Run Custom Actions End
+            choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ action2|length != 0 }}"
+                sequence: !input in_action2
+
+          - repeat:
+              sequence:
+                - alias: Downloader Integration Enabled
+                  if:
+                    - condition: template
+                      value_template: "{{ use_downloader }}"
+                  then:
+                    - action: downloader.download_file
+                      continue_on_error: true
+                      data:
+                        overwrite: true
+                        url: "{{ video }}"
+                        subdir: "{{ sub_dir }}"
+                        filename: "{{ id }}_clip.mp4"
+                    - alias: Wait for downloader to complete
+                      wait_for_trigger:
+                        - trigger: event
+                          event_type: downloader_download_completed
+                          event_data:
+                            filename: "{{ id }}_clip.mp4"
+                          id: clip_exists
+                      continue_on_timeout: true
+                      timeout:
+                        seconds: !input download_clip_wait
+
+                - delay:
+                    seconds: 2
+
+                - variables:
+                    video_file: "{{ video_local if use_downloader else video }}"
+                    event_id: "{{ '' if use_downloader else id }}"
+
                 - alias: If Downloader is enabled wait until the clip is downloaded then run LLM video Analysis, if Downloader disabled continue
                   if:
                     - condition: template
@@ -1178,183 +1336,6 @@ actions:
                 - delay:
                     minutes: !input cooldown
                   alias: Cooldown
-
-              until:
-                - condition: template
-                  value_template: >-
-                    {{ (wait is defined and wait.completed and wait.trigger and wait.trigger.id == "image_exists") or (use_downloader == false) }}
-
-  - alias: Event is end Do LLM video analysis and send notification
-    if:
-      - condition: trigger
-        id:
-          - End event
-    then:
-      - delay:
-          seconds: !input delay_clip
-      - parallel:
-          - alias: Run Custom Actions End
-            choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ action2 | length != 0 }}"
-                sequence: !input in_action2
-
-          - repeat:
-              sequence:
-                - alias: Downloader Integration Enabled
-                  if:
-                    - condition: template
-                      value_template: "{{ use_downloader }}"
-                  then:
-                    - action: downloader.download_file
-                      continue_on_error: true
-                      data:
-                        overwrite: true
-                        url: "{{ video }}"
-                        subdir: "{{ sub_dir }}"
-                        filename: "{{ id }}_clip.mp4"
-                    - alias: Wait for downloader to complete
-                      wait_for_trigger:
-                        - trigger: event
-                          event_type: downloader_download_completed
-                          event_data:
-                            filename: "{{ id }}_clip.mp4"
-                          id: clip_exists
-                      continue_on_timeout: true
-                      timeout:
-                        seconds: !input download_clip_wait
-
-                - delay:
-                    seconds: 2
-
-                - variables:
-                    video_file: "{{ video_local if use_downloader else video }}"
-                    event_id: "{{ '' if use_downloader else id }}"
-
-                - alias: If Downloader is enabled wait until the clip is downloaded then run LLM video Analysis, if Downloader disabled continue
-                  if:
-                    - condition: template
-                      value_template: >-
-                        {{ (wait is defined and wait.completed and wait.trigger and wait.trigger.id == "clip_exists") or (use_downloader == false) }}
-                  then:
-                    - if:
-                        - condition: template
-                          value_template: "{{ use_llm_video }}"
-                      then:
-                        - action: llmvision.video_analyzer
-                          data:
-                            provider: !input provider_clip
-                            model: !input model_clip
-                            store_in_timeline: !input use_remember2
-                            expose_images: !input expose_clip
-                            use_memory: !input use_memory2
-                            video_file: "{{ video_file }}"
-                            max_frames: !input max_frames
-                            include_filename: false
-                            target_width: !input target_width2
-                            max_tokens: !input tokens2
-                            generate_title: !input in_gen_title2
-                            message: !input prompt2
-                            frigate_retry_attempts: !input frigate_retry_attempts
-                            frigate_retry_seconds: !input frigate_retry_seconds
-                          response_variable: response
-                        - variables:
-                            update_title: >-
-                              {{ response.response_title if gen_title2 and response.response_title|length > 0 else title_clip }}
-                            update_message: "{{ response.response_text }}"
-                      else:
-                        - variables:
-                            update_title: "{{ title_clip }}"
-                            update_message: "{{ custom_msg }}"
-
-                    - variables:
-                        video_file2: "{{ attachment2 if '.m3u8' in attachment2 else '' }}"
-                        image_file2: "{{ '' if '.m3u8' in attachment2 else attachment2 }}"
-                        response_out: "{{ update_message }}"
-
-                    - delay:
-                        seconds: 1
-
-                    - alias: Update notification to notify devices
-                      repeat:
-                        for_each: "{{ notify_targets }}"
-                        sequence:
-                          - action: notify.{{ repeat.item.notify }}
-                            data:
-                              title: "{{ update_title }}"
-                              message: "{{ update_message }}"
-                              data:
-                                video: |-
-                                  {% if repeat.item.is_ios %}
-                                    {{ video_file2 }}
-                                  {% else %}
-                                    {{ '' }}
-                                  {% endif %}
-                                image: |-
-                                  {% if repeat.item.is_ios %}
-                                    {{ image_file2 }}
-                                  {% else %}
-                                    {{ gif if (video_file2 | length > 0) else image_file2 }}
-                                  {% endif %}
-                                url: >-
-                                  {% set ca = ca2_in|string %} {% set is_clip = 'video' in ca %}
-                                  {% if is_clip %}
-                                    {{ video_ios if repeat.item.is_ios else video }}
-                                  {% else %}
-                                    {{ ca }}
-                                  {% endif %}
-                                clickAction: >-
-                                  {% set ca = ca2_in|string %} {% set is_clip = 'video' in ca %}
-                                  {% if is_clip %}
-                                    {{ video_ios if repeat.item.is_ios else video }}
-                                  {% else %}
-                                    {{ ca }}
-                                  {% endif %}
-                                group: "{{ camera }}-frigate-notification"
-                                tag: "{{ id }}"
-                                interruption-level: active
-                                ttl: 0
-                                priority: high
-                                actions:
-                                  - action: >-
-                                      {{ "SILENCE_" ~ this.entity_id if button1_action2 == "SILENCE" else ("URI" if "/" in (button1_action2 | lower) or button1_action2 in ["VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"] else button1_action2) }}
-                                    uri: >-
-                                      {{ (button1_action2 == "VIEW_LIVE") and ("entityId:" ~ input_camera)
-                                      or (button1_action2 == "VIEW_SNAPSHOT") and image
-                                      or (button1_action2 == "VIEW_CLIP") and (video_ios if repeat.item.is_ios else video)
-                                      or (button1_action2 == "CALL") and ("deep-link://tel:" ~ call_number)
-                                      or (button1_action2 not in ["SILENCE","VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"]) and "/lovelace" }}
-                                    title: "{{ button1_title2 }}"
-                                    behavior: >-
-                                      {{ "textInput" if button1_action2 == "SILENCE" else "" }}
-                                  - action: >-
-                                      {{ "SILENCE_" ~ this.entity_id if button2_action2 == "SILENCE" else ("URI" if "/" in (button2_action2 | lower) or button2_action2 in ["VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"] else button2_action2) }}
-                                    uri: >-
-                                      {{ (button2_action2 == "VIEW_LIVE") and ("entityId:" ~ input_camera)
-                                      or (button2_action2 == "VIEW_SNAPSHOT") and image
-                                      or (button2_action2 == "VIEW_CLIP") and (video_ios if repeat.item.is_ios else video)
-                                      or (button2_action2 == "CALL") and ("deep-link://tel:" ~ call_number)
-                                      or (button2_action2 not in ["SILENCE","VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"]) and "/lovelace" }}
-                                    title: "{{ button2_title2 }}"
-                                    behavior: >-
-                                      {{ "textInput" if button2_action2 == "SILENCE" else "" }}
-                                  - action: >-
-                                      {{ "SILENCE_" ~ this.entity_id if button3_action2 == "SILENCE" else ("URI" if "/" in (button3_action2 | lower) or button3_action2 in ["VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"] else button3_action2) }}
-                                    uri: >-
-                                      {{ (button3_action2 == "VIEW_LIVE") and ("entityId:" ~ input_camera)
-                                      or (button3_action2 == "VIEW_SNAPSHOT") and image
-                                      or (button3_action2 == "VIEW_CLIP") and (video_ios if repeat.item.is_ios else video)
-                                      or (button3_action2 == "CALL") and ("deep-link://tel:" ~ call_number)
-                                      or (button3_action2 not in ["SILENCE","VIEW_LIVE","VIEW_SNAPSHOT","VIEW_CLIP","CALL"]) and "/lovelace" }}
-                                    title: "{{ button3_title2 }}"
-                                    behavior: >-
-                                      {{ "textInput" if button3_action2 == "SILENCE" else "" }}
-
-                - delay:
-                    minutes: !input cooldown
-                  alias: Cooldown
-
               until:
                 - condition: template
                   value_template: >-
